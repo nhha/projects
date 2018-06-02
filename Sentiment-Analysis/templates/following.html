@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Users followed by {{name}}</title>
+    <style type="text/css">
+        a:link {
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+<h1 style="font-size:130%; font-family:Verdana, sans-serif;">Users followed by {{name}} </h1>
+
+<table>
+    {% for r in record%}
+
+    <tr>
+        <td align=center width="80"><img src={{r['image']}}></td>
+        <td style="font-size:70%; font-family:Verdana, sans-serif">
+            <a href={{r['url']}}>{{r['name']}}</a><br>
+            {{r['followers']}} followers<br>
+            Since {{r['created']}}
+        </td>
+    </tr>
+
+    {% endfor %}
+
+
+</table>
+
+</body>
+</html>

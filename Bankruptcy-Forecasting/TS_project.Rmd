@@ -1,0 +1,380 @@
+---
+title: "R Notebook"
+output: pdf_notebook
+---
+```{r}
+library(forecast)
+```
+
+```{r}
+train <- read.csv('/Users/nahyunha/Desktop/TimeSeries/Project/train.csv')
+test <- read.csv('/Users/nahyunha/Desktop/TimeSeries/Project/test.csv')
+```
+
+train: January 1987 to December 2008 
+validation: January 2009 to December 2010 
+test: January 2011 to December 2012
+
+```{r}
+full_ts <- ts(train, start=c(1987,1), end=c(2010,12), frequency = 12)
+train_ts <- ts(train[1:264, ], start=c(1987,1), end=c(2008,12), frequency = 12)
+validation_ts <- ts(train[265:288, ], start=c(2009,1), end=c(2010,12), frequency = 12)
+```
+
+
+```{r}
+BoxCox.lambda(train_ts[,'Bankruptcy_Rate'])
+```
+Log transform the bankruptcy rate.
+
+```{r}
+plot(train_ts)
+```
+
+```{r}
+brate <- train_ts[,'Bankruptcy_Rate']
+plot(brate)
+
+```
+
+```{r}
+plot(log(brate))
+```
+
+```{r}
+acf(log(brate), lag.max = 60)
+```
+
+
+```{r}
+plot(log(brate), main='Logged Bankruptcy Rate', ylab = 'Bankruptcy Rate')
+```
+
+```{r}
+plot(diff(log(brate)), main='Bankruptcy Rate with No Trend', ylab = 'Bankruptcy Rate')
+```
+
+```{r}
+par(mfrow = c(2,1))
+acf(diff(log(brate), max.lag = 60), main = '')
+pacf(diff(log(brate), max.lag = 60), main = '')
+```
+
+
+```{r}
+brate.t <- diff(brate)
+brate.st <- diff(brate.t, lag=12, differences = 2)
+par(mfrow = c(2,1))
+acf(brate.st, lag.max = 60)
+pacf(brate.st, lag.max = 60)
+```
+
+```{r}
+tsdiag(auto.arima(brate))
+```
+
+Model 3: Multiplicative Holt Winter.
+```{r}
+m3 <- HoltWinters(x = brate,alpha = 0.2, beta =  0.2, gamma = 0.2, seasonal = "mult") 
+par(mfrow = c(3,1))
+plot(m3)
+plot(full_ts[,'Bankruptcy_Rate'])
+plot(forecast(m3, h = 24, level = 95), ylim=c(0,0.05))
+```
+
+Model 4: Multiplicative Holt Winters with no parameters given.
+```{r}
+m4 <- HoltWinters(x = brate,  seasonal = "mult") 
+par(mfrow = c(3,1))
+plot(m4)
+plot(full_ts[,'Bankruptcy_Rate'])
+plot(forecast(m4, h = 24, level = 95))
+```
+
+Model 5: Double Exp Smoothing
+```{r}
+m5 <- HoltWinters(x = brate, alpha = 0.2, beta = 0.2, gamma = F)
+par(mfrow = c(3,1))
+plot(m5)
+plot(full_ts[,'Bankruptcy_Rate'])
+plot(forecast(m5, h = 24, level = 95))
+
+```
+
+Model 6: Double Exp Smoothing with no parameters given.
+```{r}
+m6 <- HoltWinters(x = brate, gamma = F)
+par(mfrow = c(3,1))
+plot(m6)
+plot(full_ts[,'Bankruptcy_Rate'])
+plot(forecast(m6, h = 24, level = 95))
+
+```
+
+How well does the model fit the data?
+```{r}
+# training_rmse_m1 <- sqrt(mean((brate - m1$fitted)^2))
+# training_rmse_m2 <- sqrt(mean((brate - m2$fitted)^2))
+# training_rmse_m3 <- sqrt(mean((brate - m3$fitted)^2))
+# training_rmse_m4 <- sqrt(mean((brate - m4$fitted)^2))
+# 
+# data.frame("model" = c("add.hw", "add.hw.np", "mult.hw", "mult.hw.np"),
+#             "goodness_of_fit" = c(training_rmse_m1, training_rmse_m2, training_rmse_m3, training_rmse_m4))
+
+
+# training_rse_m1 <- sqrt(sum((brate - m1$fitted)^2))
+# training_rse_m2 <- sqrt(sum((brate - m2$fitted)^2))
+# training_rse_m3 <- sqrt(sum((brate - m3$fitted)^2))
+# training_rse_m4 <- sqrt(sum((brate - m4$fitted)^2))
+# training_rse_m5 <- sqrt(sum((brate - m5$fitted)^2))
+# training_rse_m6 <- sqrt(sum((brate - m6$fitted)^2))
+
+
+# training_sse_m1 <- m1$SSE
+# training_sse_m2 <- m2$SSE
+training_sse_m3 <- m3$SSE
+training_sse_m4 <- m4$SSE
+training_sse_m5 <- m5$SSE
+training_sse_m6 <- m6$SSE
+
+
+
+# data.frame("model" = c("add.hw", "add.hw.np", "mult.hw", "mult.hw.np", "double.hw.np", "double.hw"),
+#             "goodness_of_fit" = c(training_rse_m1, training_rse_m2, training_rse_m3, training_rse_m4, training_rse_m5, training_rse_m6))
+
+model_fit <- data.frame("model" = c( "Mult Triple(0.2)", "Mult Triple", "Double (0.2)", "Double"),
+            "SSE" = c(training_sse_m3, training_sse_m4, training_sse_m5, training_sse_m6))
+
+# write.csv(model_fit, 'training_sse.csv')
+model_fit
+
+```
+```{r}
+m4
+```
+
+The additive models are fitting data better than the multiplicative model.
+
+
+How well does the model predict the validation data?
+```{r}
+# predicted.m1 <- forecast(m1, h = 24)
+# predicted.m2 <- forecast(m2, h = 24)
+predicted.m3 <- forecast(m3, h = 24)
+predicted.m4 <- forecast(m4, h = 24)
+predicted.m5 <- forecast(m5, h = 24)
+predicted.m6 <- forecast(m6, h = 24)
+
+
+# rmse_m1 <- sqrt(mean((predicted.m1$mean - validation_ts[,'Bankruptcy_Rate'])^2))
+# rmse_m2 <- sqrt(mean((predicted.m2$mean - validation_ts[,'Bankruptcy_Rate'])^2))
+rmse_m3 <- sqrt(mean((predicted.m3$mean - validation_ts[,'Bankruptcy_Rate'])^2))
+rmse_m4 <- sqrt(mean((predicted.m4$mean - validation_ts[,'Bankruptcy_Rate'])^2))
+rmse_m5 <- sqrt(mean((predicted.m5$mean - validation_ts[,'Bankruptcy_Rate'])^2))
+rmse_m6 <- sqrt(mean((predicted.m6$mean - validation_ts[,'Bankruptcy_Rate'])^2))
+
+
+# data.frame("model" = c("add.hw", "add.hw.np", "mult.hw", "mult.hw.np", "double.hw"),
+            # "prediction" = c(rmse_m1, rmse_m2, rmse_m3, rmse_m4, rmse_m5))
+
+model_predict <- data.frame("Model" = c("Mult Triple (0.2)", "Mult Triple", "Double (0.2)", "Double"), "RMSE" = c(rmse_m3, rmse_m4, rmse_m5, rmse_m6))
+
+# model_predict
+
+# write.csv(predicted.m1$mean, 'HW.predictions')
+model_predict
+```
+The additive model also does better in terms of prediction.
+```{r}
+predicted.m1$mean
+```
+
+```{r}
+write.csv(predicted.m1, 'hw_forecast.csv')
+```
+
+
+Working with additive model, let's try tuning the parameter (alpha, beta, gamma).
+
+```{r}
+m1.1 <- HoltWinters(x = brate, alpha = 0.1, beta =  0.2, gamma = 0.2, seasonal = "add") 
+m1.2 <- HoltWinters(x = brate, alpha = 0.5, beta =  0.2, gamma = 0.2, seasonal = "add") 
+m1.3 <- HoltWinters(x = brate, alpha = 0.2, beta =  0.1, gamma = 0.2, seasonal = "add") 
+m1.4 <- HoltWinters(x = brate, alpha = 0.2, beta =  0.5, gamma = 0.2, seasonal = "add") 
+m1.5 <- HoltWinters(x = brate, alpha = 0.2, beta =  0.2, gamma = 0.5, seasonal = "add") 
+m1.6 <- HoltWinters(x = brate, alpha = 0.2, beta =  0.2, gamma = 0.1, seasonal = "add") 
+m1.7 <- HoltWinters(x = brate, alpha = 0.2, beta =  0.1, gamma = 0.6, seasonal = "add") 
+
+training_rse_m1 <- sum((brate - m1$fitted)^2)
+training_rse_m1.1 <- sqrt(sum((brate - m1.1$fitted)^2))
+training_rse_m1.2 <- sqrt(sum((brate - m1.2$fitted)^2))
+training_rse_m1.3 <- sqrt(sum((brate - m1.3$fitted)^2))
+training_rse_m1.4 <- sqrt(sum((brate - m1.4$fitted)^2))
+training_rse_m1.5 <- sqrt(sum((brate - m1.5$fitted)^2))
+training_rse_m1.6 <- sqrt(sum((brate - m1.6$fitted)^2))
+training_rse_m1.7 <- sqrt(sum((brate - m1.7$fitted)^2))
+
+
+data.frame("model" = c("(0.2, 0.2, 0.2)", "(0.1, 0.2, 0.2)", "(0.5, 0.2, 0.2)", "(0.2, 0.1, 0.2)", "(0.2, 0.5, 0.2)", 
+                       "(0.2, 0.2, 0.5)", "(0.2, 0.2, 0.1)", "(0.2, 0.1, 0.6)"),
+            "goodness_of_fit" = c(training_rse_m1, training_rse_m1.1, training_rse_m1.2, training_rse_m1.3,
+                                  training_rse_m1.4, training_rse_m1.5, training_rse_m1.6, training_rse_m1.7))
+
+```
+Not really that useful (only changes in 4th decimal point). Just choose the model with parameters (0.2, 0.2, 0.2).
+
+
+Ensemble
+
+```{r}
+library(vars)
+```
+
+```{r}
+full_ts <- ts(train, start=c(1987,1), end=c(2010,12), frequency = 12)
+train_ts <- ts(train[1:264, ], start=c(1987,1), end=c(2008,12), frequency = 12)
+validation_ts <- ts(train[265:288, ], start=c(2009,1), end=c(2010,12), frequency = 12)
+```
+
+```{r}
+unemployment <- train_ts[,'Unemployment_Rate']
+house_price <- train_ts[,'House_Price_Index']
+
+```
+
+```{r}
+brate <- log(train_ts[,'Bankruptcy_Rate'])
+```
+
+##Fit on full data
+```{r}
+test <- read.csv('/Users/nahyunha/Desktop/TimeSeries/Project/test.csv')
+predictions <- read.csv('/Users/nahyunha/Desktop/Predictions.csv')
+test_ts <- test[,2:4]
+
+unemp_test <- ts(test_ts[,1], start=c(2011, 1), end=c(2012,12), frequency = 12)
+hp_test <- ts(test_ts[,3], start=c(2011, 1), end=c(2012,12), frequency = 12)
+```
+
+
+```{r}
+library(vars)
+
+brate <- log(full_ts[,'Bankruptcy_Rate'])
+unemployment <- full_ts[,'Unemployment_Rate']
+house_price <- full_ts[,'House_Price_Index']
+
+m2_un_hp <- arima(brate, order = c(2,1,1), seasonal = list(order = c(1,0,1), period = 12))
+sarima.fitted <- exp(fitted(m2_un_hp))
+# sarima.pred.exp <- exp(forecast(m2_un_hp$mean)
+
+m2p2 <- VAR(y = data.frame(brate, unemployment, house_price), p = 2)
+var.fitted <- ts(exp(fitted(m2p2)[,'brate']), start=c(1987, 3), end=c(2010, 12), frequency = 12)
+# var.pred.exp <- ts(exp(pred$fcst$brate[,'fcst']), start=c(2011,1), end=c(2012,12), frequency = 12)
+
+fitted <- data.frame(sarima = window(sarima.fitted, c(1987,3), 2011), var = var.fitted)
+ensemble.fitted <- ts((fitted$sarima + fitted$var)/2, start=c(1987, 3), frequency = 12)
+
+predictions <- ts(predictions$Bankruptcy, start=c(2011,1), frequency = 12)
+
+```
+
+
+```{r}
+plot(full_ts[,'Bankruptcy_Rate'], main = 'Observed Data and Ensemble Model on Full Data', ylab = 'Bankruptcy Rate')
+lines(ensemble.fitted, col = "red")
+lines(predictions, col='green')
+legend("bottomright", legend = c("Observed", "Fitted", "Predicted"), lty = 1, col = c("black", "red", "green"), cex = 0.8)
+
+```
+
+
+```{r}
+m2_un_hp <- arima(brate, order = c(2,1,1), seasonal = list(order = c(1,0,1), period = 12))
+sarima.m2_un_hp <- forecast(m2_un_hp, h = 24, level = 95)
+```
+
+```{r}
+sarima.fitted <- exp(fitted(m2_un_hp))
+sarima.pred.exp <- exp(sarimax.m2_un_hp$mean)
+```
+
+```{r}
+var.pred.exp
+```
+
+
+```{r}
+m2p2=VAR(y = data.frame(brate, unemployment, house_price), p = 2)
+pred <- predict(m2p2, n.ahead = 24, ci = 0.95)
+```
+
+```{r}
+var.fitted <- ts(exp(fitted(m2p2)[,'brate']), start=c(1987, 3), frequency = 12)
+var.pred.exp <- ts(exp(pred$fcst$brate[,'fcst']), start=c(2009,1), frequency = 12)
+```
+
+```{r}
+fitted <- data.frame(sarima = window(sarima.fitted, c(1987,3), 2009), var = var.fitted)
+predictions <- data.frame(sarima = sarima.pred.exp, var = var.pred.exp)
+```
+
+```{r}
+fitted
+predictions
+```
+
+```{r}
+plot(full_ts[,'Bankruptcy_Rate'], main = 'Observed Data and SARIMA Model', xlab = 'Bankruptcy Rate')
+lines(sarima.fitted, col = "red")
+lines(sarima.pred.exp, col = 'green')
+legend("bottomright", legend = c("Observed", "Fitted", "Predicted"), lty = 1, col = c("black", "red", "green"), cex = 0.5)
+
+
+```
+
+
+```{r}
+plot(full_ts[,'Bankruptcy_Rate'], main = 'Observed Data and VAR Model', xlab = 'Bankruptcy Rate')
+lines(var.fitted, col = "red")
+lines(var.pred.exp, col = 'green')
+legend("topleft", legend = c("Observed", "Fitted", "Predicted"), lty = 1, col = c("black", "red", "green"), cex = 0.5)
+```
+
+```{r}
+sarima.pred.exp
+```
+
+```{r}
+ensemble.predictions <- (predictions$sarima + predictions$var)/2
+ensemble.fitted <- (fitted$sarima + fitted$var)/2
+```
+
+```{r}
+ensemble.full <- ts(c(ensemble.fitted, ensemble.predictions), start=c(1987, 3), end=c(2010, 12), frequency = 12)
+```
+
+
+```{r}
+
+# Basic approach
+plot(full_ts[,'Bankruptcy_Rate'], main = 'Observed Data and Ensemble Model',ylab = 'Bankruptcy Rate')
+lines(ensemble.fitted, col = "red")
+lines(ensemble.predictions, col = 'green')
+legend("bottomright", legend = c("Observed", "Fitted", "Predicted"), lty = 1, col = c("black", "red", "green"), cex = 0.8)
+
+```
+
+```{r}
+
+ensemble.full <- ts(c(ensemble.fitted, ensemble.predictions), start=c(1987, 1), end=c(2010, 12), frequency = 12)
+
+plot(full_ts[,'Bankruptcy_Rate'])
+lines(ensemble.full, col = "red")
+
+```
+
+```{r}
+ensemble.full
+```
+

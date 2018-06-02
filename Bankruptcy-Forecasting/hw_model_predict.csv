@@ -1,0 +1,5 @@
+Model,RMSE
+Double,0.005401018
+Double (0.2),0.007250424
+Additive Triple (0.2),0.008558288
+Additive Triple,0.009291843
